@@ -64,7 +64,7 @@ public class BluetoothOppManager {
     private static BluetoothOppManager INSTANCE;
 
     /** Used when obtaining a reference to the singleton instance. */
-    private static Object INSTANCE_LOCK = new Object();
+    private static final Object INSTANCE_LOCK = new Object();
 
     private boolean mInitialized;
 
@@ -118,8 +118,6 @@ public class BluetoothOppManager {
 
     // The time for which the whitelist entries remain valid.
     private static final int WHITELIST_DURATION_MS = 15000;
-
-    public boolean isOPPServiceUp = false;
 
     /**
      * Get singleton instance.
@@ -280,14 +278,13 @@ public class BluetoothOppManager {
     public void cleanUpSendingFileInfo() {
         synchronized (BluetoothOppManager.this) {
             Uri uri;
-            if (V) Log.v(TAG, "cleanUpSendingFileInfo: mMultipleFlag = " +
-                mMultipleFlag);
-            if (!mMultipleFlag) {
+            if (V) Log.v(TAG, "cleanUpSendingFileInfo: mMultipleFlag = " + mMultipleFlag);
+            if (!mMultipleFlag && (mUriOfSendingFile != null)) {
                 uri = Uri.parse(mUriOfSendingFile);
                 if (V) Log.v(TAG, "cleanUpSendingFileInfo: " +
                     "closeSendFileInfo for uri = " + uri);
                 BluetoothOppUtility.closeSendFileInfo(uri);
-            } else {
+            } else if (mUrisOfSendingFiles != null) {
                 for (int i = 0, count = mUrisOfSendingFiles.size(); i < count; i++) {
                     uri = mUrisOfSendingFiles.get(i);
                     if (V) Log.v(TAG, "cleanUpSendingFileInfo: " +
@@ -429,28 +426,17 @@ public class BluetoothOppManager {
         @Override
         public void run() {
             Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
-            while (true) {
-                if (mRemoteDevice == null) {
-                    Log.e(TAG, "Target bt device is null!");
-                    return;
-                }
-
-                if (V) Log.v(TAG, "OPPServiceUP = " + isOPPServiceUp);
-                if (isOPPServiceUp) {
-                    if (mIsMultiple) {
-                        insertMultipleShare();
-                    } else {
-                        insertSingleShare();
-                    }
-
-                    synchronized (BluetoothOppManager.this) {
-                        mInsertShareThreadNum--;
-                    }
-                    return;
-                } else if (!isEnabled()) {
-                    Log.v(TAG, "BT is OFF");
-                    return;
-                }
+            if (mRemoteDevice == null) {
+                Log.e(TAG, "Target bt device is null!");
+                return;
+            }
+            if (mIsMultiple) {
+                insertMultipleShare();
+            } else {
+                insertSingleShare();
+            }
+            synchronized (BluetoothOppManager.this) {
+                mInsertShareThreadNum--;
             }
         }
 
